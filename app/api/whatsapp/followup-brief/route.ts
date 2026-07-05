@@ -1,6 +1,6 @@
 import twilio from "twilio";
    import { db } from "@/lib/db";
-import type { Contact } from "@/app/generated/prisma"
+import type { Contact } from "../../../generated/prisma";
 
    const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
 
