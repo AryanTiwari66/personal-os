@@ -16,7 +16,9 @@ import twilio from "twilio";
        messages: [{
          role: "user",
          content: `Extract JSON only, no other text, from this WhatsApp message.
-         Format: {"intent": "save_contact" or "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":""}}
+         Today's date is ${new Date().toISOString().split("T")[0]}.
+         Format: {"intent": "save_contact" or "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":"YYYY-MM-DD or empty string if not mentioned"}}
+         Convert relative dates like "in 1 week" into an actual YYYY-MM-DD date based on today's date.
          Message: "${body}"`,
        }],
      });
@@ -42,7 +44,7 @@ import twilio from "twilio";
            company: parsed.data.company || null,
            phone: parsed.data.phone || null,
            notes: parsed.data.notes || null,
-           followUpDate: parsed.data.followUpDate ? new Date(parsed.data.followUpDate) : null,
+           followUpDate: parsed.data.followUpDate && !isNaN(Date.parse(parsed.data.followUpDate)) ? new Date(parsed.data.followUpDate) : null,
          },
        });
        replyText = `Saved contact: ${parsed.data.name || "Unknown"}${parsed.data.company ? " (" + parsed.data.company + ")" : ""}`;
