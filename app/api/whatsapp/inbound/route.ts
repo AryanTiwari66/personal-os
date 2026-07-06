@@ -53,11 +53,17 @@ import twilio from "twilio";
      }
 
      if (parsed.intent === "create_task") {
-       const asanaTask = await createAsanaTask(parsed.data.title || "Untitled task");
-       await db.task.create({
-         data: { title: parsed.data.title || "Untitled task", asanaTaskId: asanaTask.gid },
-       });
-       replyText = `Created Asana task: ${parsed.data.title}`;
+       const taskTitle = parsed.data.title || "Untitled task";
+       const asanaTask = await createAsanaTask(taskTitle);
+       if (asanaTask) {
+         await db.task.create({
+           data: { title: taskTitle, asanaTaskId: asanaTask.gid },
+         });
+         replyText = `Created Asana task: ${taskTitle}`;
+       } else {
+         await db.task.create({ data: { title: taskTitle } });
+         replyText = `Saved task locally but Asana sync failed: ${taskTitle}`;
+       }
      }
 
      await client.messages.create({
