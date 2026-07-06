@@ -13,5 +13,6 @@ export async function createAsanaTask(title: string) {
     }),
   });
   const json = await res.json();
+  console.log("Asana response:", JSON.stringify(json));
   return json.data;
 }
