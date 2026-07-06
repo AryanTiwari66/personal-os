@@ -22,7 +22,15 @@ import twilio from "twilio";
      });
 
      const textBlock = msg.content[0];
-     const parsed = textBlock.type === "text" ? JSON.parse(textBlock.text) : { intent: "unknown", data: {} };
+     let parsed = { intent: "unknown", data: {} };
+     if (textBlock.type === "text") {
+       const cleaned = textBlock.text.replace(/```json|```/g, "").trim();
+       try {
+         parsed = JSON.parse(cleaned);
+       } catch (e) {
+         console.log("Failed to parse:", textBlock.text);
+       }
+     }
      console.log("Parsed:", parsed);
 
      let replyText = "Sorry, I didn't understand that.";
