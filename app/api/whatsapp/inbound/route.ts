@@ -22,7 +22,7 @@ import twilio from "twilio";
      });
 
      const textBlock = msg.content[0];
-     let parsed = { intent: "unknown", data: {} };
+     let parsed: { intent: string; data: { name?: string; company?: string; phone?: string; notes?: string; followUpDate?: string } } = { intent: "unknown", data: {} };
      if (textBlock.type === "text") {
        const cleaned = textBlock.text.replace(/```json|```/g, "").trim();
        try {
