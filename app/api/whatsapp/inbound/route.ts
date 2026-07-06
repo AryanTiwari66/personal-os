@@ -1,6 +1,7 @@
 import twilio from "twilio";
    import Anthropic from "@anthropic-ai/sdk";
    import { db } from "@/lib/db";
+   import { createAsanaTask } from "@/lib/asana";
 
    const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
    const anthropic = new Anthropic();
@@ -17,14 +18,15 @@ import twilio from "twilio";
          role: "user",
          content: `Extract JSON only, no other text, from this WhatsApp message.
          Today's date is ${new Date().toISOString().split("T")[0]}.
-         Format: {"intent": "save_contact" or "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":"YYYY-MM-DD or empty string if not mentioned"}}
+         Format: {"intent": "save_contact" | "create_task" | "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":"YYYY-MM-DD or empty string", "title":""}}
+         For create_task, put the task description in "title".
          Convert relative dates like "in 1 week" into an actual YYYY-MM-DD date based on today's date.
          Message: "${body}"`,
        }],
      });
 
      const textBlock = msg.content[0];
-     let parsed: { intent: string; data: { name?: string; company?: string; phone?: string; notes?: string; followUpDate?: string } } = { intent: "unknown", data: {} };
+     let parsed: { intent: string; data: { name?: string; company?: string; phone?: string; notes?: string; followUpDate?: string; title?: string } } = { intent: "unknown", data: {} };
      if (textBlock.type === "text") {
        const cleaned = textBlock.text.replace(/```json|```/g, "").trim();
        try {
@@ -48,6 +50,14 @@ import twilio from "twilio";
          },
        });
        replyText = `Saved contact: ${parsed.data.name || "Unknown"}${parsed.data.company ? " (" + parsed.data.company + ")" : ""}`;
+     }
+
+     if (parsed.intent === "create_task") {
+       const asanaTask = await createAsanaTask(parsed.data.title || "Untitled task");
+       await db.task.create({
+         data: { title: parsed.data.title || "Untitled task", asanaTaskId: asanaTask.gid },
+       });
+       replyText = `Created Asana task: ${parsed.data.title}`;
      }
 
      await client.messages.create({

@@ -20,3 +20,10 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  asanaTaskId String?
+  createdAt   DateTime @default(now())
+}
