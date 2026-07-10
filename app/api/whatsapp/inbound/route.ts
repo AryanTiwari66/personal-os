@@ -4,6 +4,7 @@ import twilio from "twilio";
    import { createAsanaTask } from "@/lib/asana";
    import { createCalendarEvent } from "@/lib/googleCalendar";
    import { logExpense, logRun, quickCapture } from "@/lib/googleSheets";
+   import { getBalances, createSplitExpense } from "@/lib/splitwise";
 
    const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
    const anthropic = new Anthropic();
@@ -20,12 +21,14 @@ import twilio from "twilio";
          role: "user",
          content: `Extract JSON only, no other text, from this WhatsApp message.
          Today's date is ${new Date().toISOString().split("T")[0]}.
-         Format: {"intent": "save_contact" | "create_task" | "schedule_event" | "log_expense" | "log_run" | "quick_capture" | "chat" | "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":"YYYY-MM-DD or empty string", "title":"", "date":"YYYY-MM-DD", "time":"HH:MM in 24h format or empty string", "amount":"", "description":"", "category":"", "distance":"", "duration":"", "note":""}}
+         Format: {"intent": "save_contact" | "create_task" | "schedule_event" | "log_expense" | "log_run" | "quick_capture" | "split_expense" | "check_balances" | "chat" | "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":"YYYY-MM-DD or empty string", "title":"", "date":"YYYY-MM-DD", "time":"HH:MM in 24h format or empty string", "amount":"", "description":"", "category":"", "distance":"", "duration":"", "note":"", "friend":""}}
          For create_task, put the task description in "title".
          For schedule_event, put the event name in "title", the date in "date", and time in "time" (24h format like "14:30"). If no time mentioned, leave "time" empty.
          For log_expense, extract "amount" (number only), "description", and "category" (food/transport/shopping/bills/other).
          For log_run, extract "distance" (e.g. "5km") and "duration" (e.g. "30min").
          For quick_capture, put the note text in "note".
+         For split_expense, extract "amount", "description", and "friend" (the person to split with).
+         For check_balances, no extra data needed.
          Use "chat" for questions, requests for analysis, advice, or general conversation that don't fit other intents.
          Convert relative dates like "in 1 week", "tomorrow", "next Monday" into actual YYYY-MM-DD dates based on today.
          Message: "${body}"`,
@@ -33,7 +36,7 @@ import twilio from "twilio";
      });
 
      const textBlock = msg.content[0];
-     let parsed: { intent: string; data: { name?: string; company?: string; phone?: string; notes?: string; followUpDate?: string; title?: string; date?: string; time?: string; amount?: string; description?: string; category?: string; distance?: string; duration?: string; note?: string } } = { intent: "unknown", data: {} };
+     let parsed: { intent: string; data: { name?: string; company?: string; phone?: string; notes?: string; followUpDate?: string; title?: string; date?: string; time?: string; amount?: string; description?: string; category?: string; distance?: string; duration?: string; note?: string; friend?: string } } = { intent: "unknown", data: {} };
      if (textBlock.type === "text") {
        const cleaned = textBlock.text.replace(/```json|```/g, "").trim();
        try {
@@ -114,6 +117,21 @@ import twilio from "twilio";
        replyText = result.updates
          ? `Noted: ${parsed.data.note || body}`
          : `Failed to save note. Check Sheets setup.`;
+     }
+
+     if (parsed.intent === "check_balances") {
+       replyText = await getBalances();
+     }
+
+     if (parsed.intent === "split_expense") {
+       const amount = parseFloat(parsed.data.amount || "0");
+       const description = parsed.data.description || "Expense";
+       const friend = parsed.data.friend || "";
+       if (!friend) {
+         replyText = "Who did you split with? Try: 'Split 500 dinner with Raj'";
+       } else {
+         replyText = await createSplitExpense(description, amount, friend);
+       }
      }
 
      if (parsed.intent === "chat" || parsed.intent === "unknown") {
