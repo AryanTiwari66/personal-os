@@ -27,9 +27,9 @@ import twilio from "twilio";
          For log_expense, extract "amount" (number only), "description", and "category" (food/transport/shopping/bills/other).
          For log_run, extract "distance" (e.g. "5km") and "duration" (e.g. "30min").
          For quick_capture, put the note text in "note".
-         For split_expense, extract "amount", "description", and "friend" (the person to split with).
-         For check_balances, no extra data needed.
-         Use "chat" for questions, requests for analysis, advice, or general conversation that don't fit other intents.
+         For split_expense, extract "amount", "description", and "friend" (the person to split with). Triggers on: "split X with Y", "shared expense", "divide bill".
+         For check_balances, no extra data needed. Triggers on: "what do I owe", "splitwise balance", "who owes me", "settle up", "balances".
+         Use "chat" ONLY for questions, advice, or general conversation that clearly don't fit any other intent.
          Convert relative dates like "in 1 week", "tomorrow", "next Monday" into actual YYYY-MM-DD dates based on today.
          Message: "${body}"`,
        }],
