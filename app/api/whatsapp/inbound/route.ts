@@ -117,15 +117,21 @@ import twilio from "twilio";
      }
 
      if (parsed.intent === "chat" || parsed.intent === "unknown") {
-       const chatMsg = await anthropic.messages.create({
-         model: "claude-haiku-4-5-20251001",
-         max_tokens: 500,
-         system: `You are a helpful personal assistant replying via WhatsApp. Keep responses concise (under 300 chars). Today is ${new Date().toISOString().split("T")[0]}. The user's name is Aryan.`,
-         messages: [{ role: "user", content: body }],
-       });
-       const chatBlock = chatMsg.content[0];
-       if (chatBlock.type === "text") {
-         replyText = chatBlock.text;
+       try {
+         console.log("Chat fallback triggered, intent:", parsed.intent);
+         const chatMsg = await anthropic.messages.create({
+           model: "claude-haiku-4-5-20251001",
+           max_tokens: 500,
+           system: `You are a helpful personal assistant replying via WhatsApp. Keep responses concise (under 300 chars). Today is ${new Date().toISOString().split("T")[0]}. The user's name is Aryan.`,
+           messages: [{ role: "user", content: body }],
+         });
+         const chatBlock = chatMsg.content[0];
+         if (chatBlock.type === "text") {
+           replyText = chatBlock.text;
+         }
+       } catch (e) {
+         console.log("Chat fallback error:", e);
+         replyText = "Something went wrong, please try again.";
        }
      }
 
