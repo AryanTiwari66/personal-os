@@ -3,6 +3,7 @@ import twilio from "twilio";
    import { db } from "@/lib/db";
    import { createAsanaTask } from "@/lib/asana";
    import { createCalendarEvent } from "@/lib/googleCalendar";
+   import { logExpense, logRun, quickCapture } from "@/lib/googleSheets";
 
    const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
    const anthropic = new Anthropic();
@@ -19,16 +20,19 @@ import twilio from "twilio";
          role: "user",
          content: `Extract JSON only, no other text, from this WhatsApp message.
          Today's date is ${new Date().toISOString().split("T")[0]}.
-         Format: {"intent": "save_contact" | "create_task" | "schedule_event" | "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":"YYYY-MM-DD or empty string", "title":"", "date":"YYYY-MM-DD", "time":"HH:MM in 24h format or empty string"}}
+         Format: {"intent": "save_contact" | "create_task" | "schedule_event" | "log_expense" | "log_run" | "quick_capture" | "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":"YYYY-MM-DD or empty string", "title":"", "date":"YYYY-MM-DD", "time":"HH:MM in 24h format or empty string", "amount":"", "description":"", "category":"", "distance":"", "duration":"", "note":""}}
          For create_task, put the task description in "title".
          For schedule_event, put the event name in "title", the date in "date", and time in "time" (24h format like "14:30"). If no time mentioned, leave "time" empty.
+         For log_expense, extract "amount" (number only), "description", and "category" (food/transport/shopping/bills/other).
+         For log_run, extract "distance" (e.g. "5km") and "duration" (e.g. "30min").
+         For quick_capture, put the note text in "note".
          Convert relative dates like "in 1 week", "tomorrow", "next Monday" into actual YYYY-MM-DD dates based on today.
          Message: "${body}"`,
        }],
      });
 
      const textBlock = msg.content[0];
-     let parsed: { intent: string; data: { name?: string; company?: string; phone?: string; notes?: string; followUpDate?: string; title?: string; date?: string; time?: string } } = { intent: "unknown", data: {} };
+     let parsed: { intent: string; data: { name?: string; company?: string; phone?: string; notes?: string; followUpDate?: string; title?: string; date?: string; time?: string; amount?: string; description?: string; category?: string; distance?: string; duration?: string; note?: string } } = { intent: "unknown", data: {} };
      if (textBlock.type === "text") {
        const cleaned = textBlock.text.replace(/```json|```/g, "").trim();
        try {
@@ -81,6 +85,34 @@ import twilio from "twilio";
        } else {
          replyText = `Couldn't parse the date for the event.`;
        }
+     }
+
+     if (parsed.intent === "log_expense") {
+       const result = await logExpense(
+         parsed.data.amount || "0",
+         parsed.data.description || "No description",
+         parsed.data.category || "other"
+       );
+       replyText = result.updates
+         ? `Logged expense: ₹${parsed.data.amount} — ${parsed.data.description}`
+         : `Failed to log expense. Check Sheets setup.`;
+     }
+
+     if (parsed.intent === "log_run") {
+       const result = await logRun(
+         parsed.data.distance || "unknown",
+         parsed.data.duration || "unknown"
+       );
+       replyText = result.updates
+         ? `Logged run: ${parsed.data.distance}, ${parsed.data.duration}`
+         : `Failed to log run. Check Sheets setup.`;
+     }
+
+     if (parsed.intent === "quick_capture") {
+       const result = await quickCapture(parsed.data.note || body);
+       replyText = result.updates
+         ? `Noted: ${parsed.data.note || body}`
+         : `Failed to save note. Check Sheets setup.`;
      }
 
      await client.messages.create({

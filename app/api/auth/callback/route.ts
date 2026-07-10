@@ -4,9 +4,10 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   if (!code) {
     const clientId = process.env.GOOGLE_CLIENT_ID!;
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=https://www.googleapis.com/auth/calendar.events&access_type=offline&prompt=consent`;
+    const scopes = encodeURIComponent("https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/spreadsheets");
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=${scopes}&access_type=offline&prompt=consent`;
     return new Response(
-      `<h1>Google Calendar Setup</h1>
+      `<h1>Google Setup (Calendar + Sheets)</h1>
        <p>1. <a href="${authUrl}" target="_blank">Click here to authorize</a></p>
        <p>2. Copy the authorization code Google gives you</p>
        <p>3. Come back and visit:<br><code>/api/auth/callback?code=PASTE_CODE_HERE</code></p>`,
