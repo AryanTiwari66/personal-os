@@ -20,12 +20,13 @@ import twilio from "twilio";
          role: "user",
          content: `Extract JSON only, no other text, from this WhatsApp message.
          Today's date is ${new Date().toISOString().split("T")[0]}.
-         Format: {"intent": "save_contact" | "create_task" | "schedule_event" | "log_expense" | "log_run" | "quick_capture" | "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":"YYYY-MM-DD or empty string", "title":"", "date":"YYYY-MM-DD", "time":"HH:MM in 24h format or empty string", "amount":"", "description":"", "category":"", "distance":"", "duration":"", "note":""}}
+         Format: {"intent": "save_contact" | "create_task" | "schedule_event" | "log_expense" | "log_run" | "quick_capture" | "chat" | "unknown", "data": {"name":"", "company":"", "phone":"", "notes":"", "followUpDate":"YYYY-MM-DD or empty string", "title":"", "date":"YYYY-MM-DD", "time":"HH:MM in 24h format or empty string", "amount":"", "description":"", "category":"", "distance":"", "duration":"", "note":""}}
          For create_task, put the task description in "title".
          For schedule_event, put the event name in "title", the date in "date", and time in "time" (24h format like "14:30"). If no time mentioned, leave "time" empty.
          For log_expense, extract "amount" (number only), "description", and "category" (food/transport/shopping/bills/other).
          For log_run, extract "distance" (e.g. "5km") and "duration" (e.g. "30min").
          For quick_capture, put the note text in "note".
+         Use "chat" for questions, requests for analysis, advice, or general conversation that don't fit other intents.
          Convert relative dates like "in 1 week", "tomorrow", "next Monday" into actual YYYY-MM-DD dates based on today.
          Message: "${body}"`,
        }],
@@ -113,6 +114,19 @@ import twilio from "twilio";
        replyText = result.updates
          ? `Noted: ${parsed.data.note || body}`
          : `Failed to save note. Check Sheets setup.`;
+     }
+
+     if (parsed.intent === "chat" || parsed.intent === "unknown") {
+       const chatMsg = await anthropic.messages.create({
+         model: "claude-haiku-4-5-20251001",
+         max_tokens: 500,
+         system: `You are a helpful personal assistant replying via WhatsApp. Keep responses concise (under 300 chars). Today is ${new Date().toISOString().split("T")[0]}. The user's name is Aryan.`,
+         messages: [{ role: "user", content: body }],
+       });
+       const chatBlock = chatMsg.content[0];
+       if (chatBlock.type === "text") {
+         replyText = chatBlock.text;
+       }
      }
 
      await client.messages.create({
